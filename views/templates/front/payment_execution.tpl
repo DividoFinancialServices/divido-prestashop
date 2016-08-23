@@ -16,7 +16,7 @@
 {else}
     <form action="{$link->getModuleLink('dividofinancing', 'validation', [], true)|escape:'html':'UTF-8'}" method="post">
         <div class="box cheque-box">
-            <fieldset id="divido-checkout" data-divido-calculator class="divido-calculator divido-theme-blue" data-divido-amount="{$total}" data-divido-plans="" data-divido-filter-plans="1">
+            <fieldset id="divido-checkout" data-divido-calculator class="divido-calculator divido-theme-blue" data-divido-amount="{$total}" data-divido-plans="{$plans}" data-divido-filter-plans="1">
                 <h1>
                     <a href="https://www.divido.com" target="_blank" class="divido-logo divido-logo-sm" style="float:right;">Divido</a>
                     Pay in instalments
