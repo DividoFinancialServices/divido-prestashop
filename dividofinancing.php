@@ -64,7 +64,7 @@ class DividoFinancing extends PaymentModule
 		$dropLookup = sprintf("DROP TABLE IF EXISTS %sdivido_lookup", _DB_PREFIX_);
 		$dropProducts = sprintf("DROP TABLE IF EXISTS %sdivido_products", _DB_PREFIX_);
 		$dbUninstall = Db::getInstance()->execute($dropLookup) 
-			&& Db::getInstance()->execute($dropLookup);
+			&& Db::getInstance()->execute($dropProducts);
 
 		$parentUninstall = parent::uninstall();
 
