@@ -1,0 +1,64 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
+        "This file is @generated automatically"
+    ],
+    "hash": "bb705b172bfe58480de7075b515415ae",
+    "content-hash": "310d75db46cbf30db12882204899179e",
+    "packages": [
+        {
+            "name": "divido/divido-php",
+            "version": "v1.2-stable",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/DividoFinancialServices/divido-api-php.git",
+                "reference": "241fb70ead93ace8cee22063132e939b426b00e6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/DividoFinancialServices/divido-api-php/zipball/241fb70ead93ace8cee22063132e939b426b00e6",
+                "reference": "241fb70ead93ace8cee22063132e939b426b00e6",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "php": ">=5.2.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "master": "2.0-dev",
+                    "v1.1.1": "1.1.1-dev"
+                }
+            },
+            "autoload": {
+                "psr-0": {
+                    "Divido": "lib"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Divido PHP library",
+            "homepage": "https://www.divido.com/",
+            "keywords": [
+                "api",
+                "divido",
+                "finance",
+                "instalments",
+                "payment processing"
+            ],
+            "time": "2016-06-28 14:18:43"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": []
+}

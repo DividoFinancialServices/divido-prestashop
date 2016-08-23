@@ -1,0 +1,49 @@
+[
+    {
+        "name": "divido/divido-php",
+        "version": "v1.2-stable",
+        "version_normalized": "1.2.0.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/DividoFinancialServices/divido-api-php.git",
+            "reference": "241fb70ead93ace8cee22063132e939b426b00e6"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/DividoFinancialServices/divido-api-php/zipball/241fb70ead93ace8cee22063132e939b426b00e6",
+            "reference": "241fb70ead93ace8cee22063132e939b426b00e6",
+            "shasum": ""
+        },
+        "require": {
+            "ext-curl": "*",
+            "php": ">=5.2.0"
+        },
+        "time": "2016-06-28 14:18:43",
+        "type": "library",
+        "extra": {
+            "branch-alias": {
+                "master": "2.0-dev",
+                "v1.1.1": "1.1.1-dev"
+            }
+        },
+        "installation-source": "dist",
+        "autoload": {
+            "psr-0": {
+                "Divido": "lib"
+            }
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "description": "Divido PHP library",
+        "homepage": "https://www.divido.com/",
+        "keywords": [
+            "api",
+            "divido",
+            "finance",
+            "instalments",
+            "payment processing"
+        ]
+    }
+]
