@@ -38,6 +38,17 @@ class DividoFinancing extends PaymentModule
 		$this->setup();
 	}
 
+	public function setup ()
+	{
+        xdebug_break();
+		if (! $apiKey = $this->getApiKey()) {
+			return false;
+		}
+
+		Divido::setMerchant($apiKey);
+	}
+
+
 	public function install ()
 	{
 		Configuration::updateValue('DIVIDO_API_KEY', null);
@@ -84,6 +95,7 @@ class DividoFinancing extends PaymentModule
 
 	public function getAllPlans()
 	{
+        xdebug_break();
 		if (! $apiKey = $this->getApiKey()) {
 			return false;
 		}
@@ -96,6 +108,175 @@ class DividoFinancing extends PaymentModule
 		return $plans->finances;
 	}
 
+	protected function postProcess()
+	{
+		$values = Tools::getAllValues();
+		foreach ($values as $key => $value) {
+			if (substr($key, 0, 7) != 'DIVIDO_') {
+				continue;
+			}
+
+			if (is_array($value)) {
+				$value = implode(',', $value);
+			}
+
+			Configuration::updateValue($key, $value);
+		}
+
+		$this->confirmation_message = (_PS_VERSION_ < '1.6' ?
+			'<div class="conf confirmation">'.$this->l('Settings updated').'</div>':
+			$this->displayConfirmation($this->l('Settings updated')));
+	}
+
+	public function hookBackOfficeHeader ()
+	{
+		$this->context->controller->addJS($this->_path . 'views/js/backoffice.js');
+	}
+
+	public function hookHeader ()
+	{
+		if ($scriptUrl = $this->getScriptUrl()) {
+			$this->context->controller->addJS($scriptUrl);
+		}
+
+		$this->context->controller->addJS($this->_path . 'views/js/frontoffice.js');
+		$this->context->controller->addCSS($this->_path . 'views/css/divido.css');
+	}
+
+	public function hookPayment($params)
+	{
+		if (! $this->active) {
+			return;
+		}
+
+		$this->smarty->assign(array(
+			'this_path' => $this->_path,
+			'this_path_divido' => $this->_path,
+			'this_path_ssl' => Tools::getShopDomainSsl(true, true).__PS_BASE_URI__.'modules/'.$this->name.'/'
+		));
+
+		return $this->display(__FILE__, 'payment.tpl');
+	}
+
+	public function hookDisplayAdminProductsExtra($params)
+	{
+		if (Validate::isLoadedObject($product = new Product((int)Tools::getValue('id_product')))) {
+
+			$availablePlans = array();
+			if ($allPlans = $this->getAllPlans()) {
+				foreach ($allPlans as $plan) {
+					$availablePlans[$plan->id] = $plan->text;
+				}
+			}
+
+			$this->context->smarty->assign(array(
+				'allPlans' => $availablePlans,
+				'prod_plans_option' => 1,
+				'prod_plans' => array(),
+			));
+			return $this->display(__FILE__, 'product.tpl');
+		}
+	}
+
+	public function hookActionProductUpdate($params)
+	{
+		$id_product = (int)Tools::getValue('id_product');
+
+		$languages = Language::getLanguages(true);
+		foreach ($languages as $lang) {
+			if(!Db::getInstance()->update('product_lang', array('custom_field'=> pSQL(Tools::getValue('custom_field_'.$lang['id_lang']))) ,'id_lang = ' . $lang['id_lang'] .' AND id_product = ' .$id_product ))
+				$this->context->controller->_errors[] = Tools::displayError('Error: ').mysql_error();
+		}
+
+	}
+
+	public function getScriptUrl ()
+	{
+		if (! $apiKey = $this->getApiKey()) {
+			return false;
+		}
+
+		$jsKeyParts = explode('.', $apiKey);
+		$jsKey = array_shift($jsKeyParts);
+		$jsKey = strtolower($jsKey);
+
+		return "//cdn.divido.com/calculator/{$jsKey}.js";
+	}
+
+	public function hash_cart ($salt, $cartId)
+	{
+		return hash('sha256', $salt.$cartId);
+	}
+
+	public function getApiKey ()
+	{
+		if (! $this->apiKey) {
+			$key = Configuration::get('DIVIDO_API_KEY');
+			if ($key) {
+				$this->apiKey = $key;
+			} elseif ($key = Tools::getValue('DIVIDO_API_KEY')) {
+                $this->apiKey = $key;
+            } else {
+				$this->apiKey = false;
+			}
+		}
+
+		return $this->apiKey;
+	}
+
+	public function createDb ()
+	{
+		$lookup = sprintf("
+			CREATE TABLE IF NOT EXISTS `%sdivido_lookup` (
+				`lookup_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Id',
+				`salt` varchar(255) NOT NULL COMMENT 'Salt',
+				`cart_id` int(10) unsigned NOT NULL COMMENT 'Quote ID',
+				`credit_request_id` text NOT NULL COMMENT 'Credit request ID',
+				`credit_application_id` text NOT NULL COMMENT 'Credit application ID',
+				`order_id` int(11) DEFAULT NULL COMMENT 'Order ID',
+				`deposit_amount` decimal(10,2) NOT NULL COMMENT 'Credit application ID',
+				`canceled` tinyint(1) DEFAULT NULL COMMENT 'The application has ben cancelled',
+				`declined` tinyint(1) DEFAULT NULL COMMENT 'The application was denied',
+				PRIMARY KEY (`lookup_id`),
+				UNIQUE KEY `UNQ_DIVIDO_LOOKUP_CART_ID` (`cart_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Contains info on applications from Divido'
+			", _DB_PREFIX_);
+
+		$products = sprintf("
+			CREATE TABLE IF NOT EXISTS `%sdivido_products` (
+				`product_id` int(10) unsigned NOT NULL COMMENT 'Product Id',
+				`plans_opt` tinyint(1) DEFAULT NULL COMMENT 'Plans settings',
+				`plans` text,
+				PRIMARY KEY (`product_id`)
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Contains product settings for Divido'
+			", _DB_PREFIX_);
+
+		return Db::getInstance()->execute($lookup)
+			&& Db::getInstance()->execute($products);
+	}
+
+	public function getConfigFieldsValues ()
+	{
+		return array(
+			'DIVIDO_API_KEY'             => Configuration::get('DIVIDO_API_KEY'),
+			'DIVIDO_ENABLED'             => Configuration::get('DIVIDO_ENABLED'),
+			'DIVIDO_CREATE_ORDER_STATUS' => Configuration::get('DIVIDO_CREATE_ORDER_STATUS'),
+			'DIVIDO_TITLE'               => Configuration::get('DIVIDO_TITLE'),
+			'DIVIDO_PROD_SELECTION'      => Configuration::get('DIVIDO_PROD_SELECTION'),
+			'DIVIDO_PRICE_THRESHOLD'     => Configuration::get('DIVIDO_PRICE_THRESHOLD'),
+			'DIVIDO_PLANS_OPTION'        => Configuration::get('DIVIDO_PLANS_OPTION'),
+			'DIVIDO_PLANS[]'             => explode(',', Configuration::get('DIVIDO_PLANS')),
+		);
+	}
+	public function createLookup ($values = array()) {
+		$values = array_map(function ($val) { return pSQL($val); }, $values);
+		return DB::getInstance()->insert('divido_lookup', $values, false, true, Db::ON_DUPLICATE_KEY);
+	}
+
+	public function doCreditRequest ($requestData)
+	{
+		return Divido_CreditRequest::create($requestData);
+	}
 	public function displayForm ()
 	{
 		$default_lang = (int)Configuration::get('PS_LANG_DEFAULT');
@@ -282,181 +463,5 @@ class DividoFinancing extends PaymentModule
 		return $helper->generateForm($fields_form);
 	}
 
-	protected function postProcess()
-	{
-		$values = Tools::getAllValues();
-		foreach ($values as $key => $value) {
-			if (substr($key, 0, 7) != 'DIVIDO_') {
-				continue;
-			}
-
-			if (is_array($value)) {
-				$value = implode(',', $value);
-			}
-
-			Configuration::updateValue($key, $value);
-		}
-
-		$this->confirmation_message = (_PS_VERSION_ < '1.6' ?
-			'<div class="conf confirmation">'.$this->l('Settings updated').'</div>':
-			$this->displayConfirmation($this->l('Settings updated')));
-	}
-
-	public function hookBackOfficeHeader ()
-	{
-		$this->context->controller->addJS($this->_path . 'views/js/backoffice.js');
-	}
-
-	public function hookHeader ()
-	{
-		if ($scriptUrl = $this->getScriptUrl()) {
-			$this->context->controller->addJS($scriptUrl);
-		}
-
-		$this->context->controller->addJS($this->_path . 'views/js/frontoffice.js');
-		$this->context->controller->addCSS($this->_path . 'views/css/divido.css');
-	}
-
-	public function hookPayment($params)
-	{
-		if (! $this->active) {
-			return;
-		}
-
-		$this->smarty->assign(array(
-			'this_path' => $this->_path,
-			'this_path_divido' => $this->_path,
-			'this_path_ssl' => Tools::getShopDomainSsl(true, true).__PS_BASE_URI__.'modules/'.$this->name.'/'
-		));
-
-		return $this->display(__FILE__, 'payment.tpl');
-	}
-
-	public function hookDisplayAdminProductsExtra($params)
-	{
-		if (Validate::isLoadedObject($product = new Product((int)Tools::getValue('id_product')))) {
-
-			$availablePlans = array();
-			if ($allPlans = $this->getAllPlans()) {
-				foreach ($allPlans as $plan) {
-					$availablePlans[$plan->id] = $plan->text;
-				}
-			}
-
-			$this->context->smarty->assign(array(
-				'allPlans' => $availablePlans,
-				'prod_plans_option' => 1,
-				'prod_plans' => array(),
-			));
-			return $this->display(__FILE__, 'product.tpl');
-		}
-	}
-
-	public function hookActionProductUpdate($params)
-	{
-		$id_product = (int)Tools::getValue('id_product');
-
-		$languages = Language::getLanguages(true);
-		foreach ($languages as $lang) {
-			if(!Db::getInstance()->update('product_lang', array('custom_field'=> pSQL(Tools::getValue('custom_field_'.$lang['id_lang']))) ,'id_lang = ' . $lang['id_lang'] .' AND id_product = ' .$id_product ))
-				$this->context->controller->_errors[] = Tools::displayError('Error: ').mysql_error();
-		}
-
-	}
-
-	public function getScriptUrl ()
-	{
-		if (! $apiKey = $this->getApiKey()) {
-			return false;
-		}
-
-		$jsKeyParts = explode('.', $apiKey);
-		$jsKey = array_shift($jsKeyParts);
-		$jsKey = strtolower($jsKey);
-
-		return "//cdn.divido.com/calculator/{$jsKey}.js";
-	}
-
-	public function hash_cart ($salt, $cartId)
-	{
-		return hash('sha256', $salt.$cartId);
-	}
-
-	public function setup ()
-	{
-		if (! $apiKey = $this->getApiKey()) {
-			return false;
-		}
-
-		Divido::setMerchant($apiKey);
-	}
-
-	public function getApiKey ()
-	{
-		if (! $this->apiKey) {
-			$key = Configuration::get('DIVIDO_API_KEY');
-			if ($key) {
-				$this->apiKey = $key;
-			} else {
-				$this->apiKey = false;
-			}
-		}
-
-		return $this->apiKey;
-	}
-
-	public function createDb ()
-	{
-		$lookup = sprintf("
-			CREATE TABLE IF NOT EXISTS `%sdivido_lookup` (
-				`lookup_id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'Id',
-				`salt` varchar(255) NOT NULL COMMENT 'Salt',
-				`cart_id` int(10) unsigned NOT NULL COMMENT 'Quote ID',
-				`credit_request_id` text NOT NULL COMMENT 'Credit request ID',
-				`credit_application_id` text NOT NULL COMMENT 'Credit application ID',
-				`order_id` int(11) DEFAULT NULL COMMENT 'Order ID',
-				`deposit_amount` decimal(10,2) NOT NULL COMMENT 'Credit application ID',
-				`canceled` tinyint(1) DEFAULT NULL COMMENT 'The application has ben cancelled',
-				`declined` tinyint(1) DEFAULT NULL COMMENT 'The application was denied',
-				PRIMARY KEY (`lookup_id`),
-				UNIQUE KEY `UNQ_DIVIDO_LOOKUP_CART_ID` (`cart_id`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Contains info on applications from Divido'
-			", _DB_PREFIX_);
-
-		$products = sprintf("
-			CREATE TABLE IF NOT EXISTS `%sdivido_products` (
-				`product_id` int(10) unsigned NOT NULL COMMENT 'Product Id',
-				`plans_opt` tinyint(1) DEFAULT NULL COMMENT 'Plans settings',
-				`plans` text,
-				PRIMARY KEY (`product_id`)
-			) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Contains product settings for Divido'
-			", _DB_PREFIX_);
-
-		return Db::getInstance()->execute($lookup)
-			&& Db::getInstance()->execute($products);
-	}
-
-	public function getConfigFieldsValues ()
-	{
-		return array(
-			'DIVIDO_API_KEY'             => Configuration::get('DIVIDO_API_KEY'),
-			'DIVIDO_ENABLED'             => Configuration::get('DIVIDO_ENABLED'),
-			'DIVIDO_CREATE_ORDER_STATUS' => Configuration::get('DIVIDO_CREATE_ORDER_STATUS'),
-			'DIVIDO_TITLE'               => Configuration::get('DIVIDO_TITLE'),
-			'DIVIDO_PROD_SELECTION'      => Configuration::get('DIVIDO_PROD_SELECTION'),
-			'DIVIDO_PRICE_THRESHOLD'     => Configuration::get('DIVIDO_PRICE_THRESHOLD'),
-			'DIVIDO_PLANS_OPTION'        => Configuration::get('DIVIDO_PLANS_OPTION'),
-			'DIVIDO_PLANS[]'             => explode(',', Configuration::get('DIVIDO_PLANS')),
-		);
-	}
-	public function createLookup ($values = array()) {
-		$values = array_map(function ($val) { return pSQL($val); }, $values);
-		return DB::getInstance()->insert('divido_lookup', $values, false, true, Db::ON_DUPLICATE_KEY);
-	}
-
-	public function doCreditRequest ($requestData)
-	{
-		return Divido_CreditRequest::create($requestData);
-	}
 }
 
