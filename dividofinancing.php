@@ -40,14 +40,12 @@ class DividoFinancing extends PaymentModule
 
 	public function setup ()
 	{
-        xdebug_break();
 		if (! $apiKey = $this->getApiKey()) {
 			return false;
 		}
 
 		Divido::setMerchant($apiKey);
 	}
-
 
 	public function install ()
 	{
@@ -64,6 +62,7 @@ class DividoFinancing extends PaymentModule
 		$dbInstall       = $this->createDb();
 		$backOfficeHook  = $this->registerHook('backOfficeHeader');
 		$boProdHook      = $this->registerHook('displayAdminProductsExtra');
+        $boProdSaveHook  = $this->registerHook('actionProductUpdate');
 		$frontOfficeHook = $this->registerHook('header');
 		$paymentHook     = $this->registerHook('payment');
 
@@ -95,7 +94,6 @@ class DividoFinancing extends PaymentModule
 
 	public function getAllPlans()
 	{
-        xdebug_break();
 		if (! $apiKey = $this->getApiKey()) {
 			return false;
 		}
@@ -143,7 +141,7 @@ class DividoFinancing extends PaymentModule
 		$this->context->controller->addCSS($this->_path . 'views/css/divido.css');
 	}
 
-	public function hookPayment($params)
+	public function hookPayment ($params)
 	{
 		if (! $this->active) {
 			return;
@@ -158,9 +156,12 @@ class DividoFinancing extends PaymentModule
 		return $this->display(__FILE__, 'payment.tpl');
 	}
 
-	public function hookDisplayAdminProductsExtra($params)
+	public function hookDisplayAdminProductsExtra ($params)
 	{
-		if (Validate::isLoadedObject($product = new Product((int)Tools::getValue('id_product')))) {
+        $prodId = (int)Tools::getValue('id_product');
+		if (Validate::isLoadedObject($product = new Product($prodId))) {
+
+            $prodSettings = self::getProdSettings($prodId);
 
 			$availablePlans = array();
 			if ($allPlans = $this->getAllPlans()) {
@@ -169,26 +170,42 @@ class DividoFinancing extends PaymentModule
 				}
 			}
 
-			$this->context->smarty->assign(array(
+            $smartyVars = array(
 				'allPlans' => $availablePlans,
-				'prod_plans_option' => 1,
-				'prod_plans' => array(),
-			));
+				'prod_plans_option' => $prodSettings['plans_opt'],
+				'prod_plans' => explode(',', $prodSettings['plans']),
+			);
+
+			$this->context->smarty->assign($smartyVars);
+
 			return $this->display(__FILE__, 'product.tpl');
 		}
 	}
 
 	public function hookActionProductUpdate($params)
 	{
-		$id_product = (int)Tools::getValue('id_product');
+		$prodId = (int)Tools::getValue('id_product');
+        $planIds = Tools::getValue('prod_plans');
+        $planOpt = Tools::getValue('prod_plans_option');
 
-		$languages = Language::getLanguages(true);
-		foreach ($languages as $lang) {
-			if(!Db::getInstance()->update('product_lang', array('custom_field'=> pSQL(Tools::getValue('custom_field_'.$lang['id_lang']))) ,'id_lang = ' . $lang['id_lang'] .' AND id_product = ' .$id_product ))
-				$this->context->controller->_errors[] = Tools::displayError('Error: ').mysql_error();
-		}
+        if (is_array($planIds)) {
+            $planIds = implode(',', $planIds);
+        }
 
+        $data = array(
+            'product_id' => $prodId,
+            'plans_opt' => $planOpt,
+            'plans' => $planIds,
+        );
+
+        return Db::getInstance()->insert('divido_products', $data, true, false, Db::ON_DUPLICATE_KEY);
 	}
+
+    public static function getProdSettings ($prodId)
+    {
+        $q = 'select * from ' . _DB_PREFIX_ . 'divido_products where product_id = ' . $prodId;
+        return Db::getInstance()->getRow($q);
+    }
 
 	public function getScriptUrl ()
 	{
@@ -277,6 +294,7 @@ class DividoFinancing extends PaymentModule
 	{
 		return Divido_CreditRequest::create($requestData);
 	}
+
 	public function displayForm ()
 	{
 		$default_lang = (int)Configuration::get('PS_LANG_DEFAULT');

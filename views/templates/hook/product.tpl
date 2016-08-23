@@ -20,7 +20,7 @@
 	<div class="form-group">
 		<label class="control-label col-lg-3" for="text_fields">{l s='Available plans'}</label>
 		<div class="col-lg-3">
-			<select multiple="multiple" name="prod_plans" id="prod_plans" value="{$prod_plans|htmlentities}">
+			<select multiple="multiple" name="prod_plans[]" id="prod_plans" value="{$prod_plans|htmlentities}">
             {foreach from=$allPlans key=id item=name}
                 <option value="{$id}" {if $id|in_array:$prod_plans}selected="selected"{/if}>{$name}</option>
             {/foreach}
