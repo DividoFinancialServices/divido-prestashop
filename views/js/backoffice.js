@@ -17,9 +17,13 @@ $(function () {
             toggleTreshold();
         });
 
-        toggleTreshold();
+        $('#prod_plans_option').on('change', function () {
+            toggleProductPlans();
+        });
 
+        toggleTreshold();
         togglePlans();
+        toggleProductPlans();
     }
 
     function showAll ()
@@ -52,5 +56,15 @@ $(function () {
             $('#DIVIDO_PLANS\\[\\]').parent().parent().hide();
         }
     }
+
+    function toggleProductPlans () 
+    {
+        if ($('#prod_plans_option').val() == 1) {
+            $('#prod_plans').parent().parent().show();
+        } else {
+            $('#prod_plans').parent().parent().hide();
+        }
+    }
+
     init();
 });
