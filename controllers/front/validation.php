@@ -32,7 +32,6 @@ class DividofinancingValidationModuleFrontController extends ModuleFrontControll
 
         $apiKey = $this->module->getApiKey();
 
-        xdebug_break();
 		$total   = (float)$cart->getOrderTotal(true, Cart::BOTH);
         $deposit_percentage = Tools::getValue('divido_deposit') / 100;
         $deposit = round($deposit_percentage * $total, 2);

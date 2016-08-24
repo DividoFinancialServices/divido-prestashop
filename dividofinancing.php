@@ -11,6 +11,8 @@ class DividoFinancing extends PaymentModule
     const
         DIVIDO_STATUS_ACCEPTED = 'ACCEPTED',
         DIVIDO_STATUS_SIGNED = 'SIGNED',
+        SHOW_WIDGET_YES = 1,
+        SHOW_WIDGET_NO = 0,
         PROD_SEL_ALL = 0,
         PROD_SEL_TRESHOLD = 1,
         PROD_SEL_SELECTED = 2,
@@ -53,20 +55,23 @@ class DividoFinancing extends PaymentModule
     {
         Configuration::updateValue('DIVIDO_API_KEY', null);
         Configuration::updateValue('DIVIDO_ENABLED', false);
+        Configuration::updateValue('DIVIDO_SHOW_WIDGET', self::SHOW_WIDGET_YES);
         Configuration::updateValue('DIVIDO_CREATE_ORDER_STATUS', self::DIVIDO_STATUS_ACCEPTED);
         Configuration::updateValue('DIVIDO_TITLE', 'Pay in instalments with Divido');
         Configuration::updateValue('DIVIDO_PROD_SELECTION', self::PROD_SEL_ALL);
-        Configuration::updateValue('DIVIDO_PRICE_THRESHOLD', 0);
+        Configuration::updaMteValue('DIVIDO_PRICE_THRESHOLD', 0);
         Configuration::updateValue('DIVIDO_PLANS_OPTION', self::PLANS_ALL);
         Configuration::updateValue('DIVIDO_PLANS', null);
 
         $parentInstall   = parent::install();
         $dbInstall       = $this->createDb();
-        $backOfficeHook  = $this->registerHook('backOfficeHeader');
+
+        $boHeadHook      = $this->registerHook('backOfficeHeader');
         $boProdHook      = $this->registerHook('displayAdminProductsExtra');
         $boProdSaveHook  = $this->registerHook('actionProductUpdate');
-        $frontOfficeHook = $this->registerHook('header');
-        $paymentHook     = $this->registerHook('payment');
+        $foHeadHook      = $this->registerHook('header');
+        $foPaymentHook   = $this->registerHook('payment');
+        $foProdPriceHook = $this->registerHook('displayProductPriceBlock');
 
         return $parentInstall && $dbInstall;
     }
@@ -271,6 +276,32 @@ class DividoFinancing extends PaymentModule
         return Db::getInstance()->insert('divido_products', $data, true, false, Db::ON_DUPLICATE_KEY);
     }
 
+    public function hookDisplayProductPriceBlock ($params)
+    {
+        if ($params['type'] != 'after_price') {
+            return false;
+        }
+
+        $showWidget = Configuration::get('DIVIDO_SHOW_WIDGET');
+        if ($showWidget != self::SHOW_WIDGET_YES) {
+            return false;
+        }
+
+        $prod = $params['product'];
+        
+        $plans = $this->getProductPlans($prod->id);
+        $plans = array_map(function ($p) { return $p->id; }, $plans);
+        $plans = implode(',', $plans);
+
+        $data = array(
+            'price' => $prod->getPrice(),
+            'plans' => $plans,
+        );
+
+        $this->context->smarty->assign($data);
+
+        return $this->display(__FILE__, 'widget.tpl');
+    }
     public static function getProdSettings ($prodId)
     {
         $q = 'select * from ' . _DB_PREFIX_ . 'divido_products where product_id = ' . $prodId;
@@ -347,6 +378,7 @@ class DividoFinancing extends PaymentModule
         return array(
             'DIVIDO_API_KEY'             => Configuration::get('DIVIDO_API_KEY'),
             'DIVIDO_ENABLED'             => Configuration::get('DIVIDO_ENABLED'),
+            'DIVIDO_SHOW_WIDGET'         => Configuration::get('DIVIDO_SHOW_WIDGET'),
             'DIVIDO_CREATE_ORDER_STATUS' => Configuration::get('DIVIDO_CREATE_ORDER_STATUS'),
             'DIVIDO_TITLE'               => Configuration::get('DIVIDO_TITLE'),
             'DIVIDO_PROD_SELECTION'      => Configuration::get('DIVIDO_PROD_SELECTION'),
@@ -384,15 +416,6 @@ class DividoFinancing extends PaymentModule
                 $this->l('Settings'),
             ),
             'input' => array(
-                /*
-                array(
-                    'type'     => '',
-                    'label'    => $this->l(''),
-                    'name'     => 'DIVIDO_',
-                    'size'     => 52,
-                    'required' => false,
-                ),
-                 */
                 array(
                     'type'     => 'text',
                     'label'    => $this->l('API-key'),
@@ -415,6 +438,25 @@ class DividoFinancing extends PaymentModule
                         array(
                             'id'    => 'id_enabled',
                             'value' => 0,
+                            'label' => $this->l('No'),
+                        ),
+                    ),
+                ),
+                array(
+                    'type'     => (_PS_VERSION_ < '1.6' ? 'radio':'switch'),
+                    'label'    => $this->l('Show widget'),
+                    'name'     => 'DIVIDO_SHOW_WIDGET',
+                    'required' => false,
+                    'is_bool'  => true,
+                    'values'   => array(
+                        array(
+                            'id'    => 'id_enabled',
+                            'value' => self::SHOW_WIDGET_YES,
+                            'label' => $this->l('Yes'),
+                        ),
+                        array(
+                            'id'    => 'id_enabled',
+                            'value' => self::SHOW_WIDGET_NO,
                             'label' => $this->l('No'),
                         ),
                     ),

@@ -1,4 +1,3 @@
-{$test}
 <div id="product-divido" class="panel product-tab">
 	<input type="hidden" name="submitted_tabs[]" value="Divido" />
 	<h3>{l s='Divido product settings'}</h3>
