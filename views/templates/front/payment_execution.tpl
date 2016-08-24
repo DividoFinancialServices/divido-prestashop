@@ -32,7 +32,7 @@
                     </strong>
                 </div>
                 <div class="divido-info">
-                    <dl>
+                    <dl class="divido-calculations">
                         <dt>Term</dt>
                         <dd><span data-divido-agreement-duration></span> months</dd>
                         <dt>Monthly instalment</dt>
@@ -46,6 +46,15 @@
                         <dt>Total interest APR</dt>
                         <dd><span data-divido-interest-rate></span></dd>
                     </dl>
+                    <div class="divido-conditions">
+                        <strong>We can only consider your application if you:</strong>
+                        <ul>
+                            <li>Are employed, or retired, and have a regular monthly income</li>
+                            <li>Are a UK resident, over 18 and able to supply 3 years of address history</li>
+                            <li>Have a good credit history (no CCJ's)</li>
+                            <li>Have a debit or credit card</li>
+                        </ul>
+                  </div>
                 </div>
                 <div class="clear"></div>
                 <p>You will be redirected to Divido to complete this finance application when you continue</p>

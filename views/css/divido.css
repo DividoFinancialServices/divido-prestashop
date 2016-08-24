@@ -17,7 +17,8 @@
 }
 
 #divido-checkout {
-    margin:0px;
+    margin: 0px auto;
+	max-width: 800px;
 }
 
 .divido-calculator h1 {
@@ -57,9 +58,40 @@
     margin-bottom: 20px;
 }
 
+.divido-calculator .divido-info .divido-calculations {
+	width: 100%;
+}
+
+.divido-calculator .divido-info .divido-conditions {
+    margin-top: 20px;
+	width: 100%;
+}
+
+.divido-calculator .divido-info .divido-conditions ul {
+    list-style-image: url('https://cdn.divido.com/images/conditions-check-green-20x15.png');
+}
+
+.divido-calculator div.divido-info dl dt, .divido-calculator div.divido-info dl dd {
+    width: 50%;
+}
+.divido-calculator div.divido-info dl dd {
+    padding-left: 5px;
+}
+
 @media screen and (min-width: 960px) {
     .divido-calculator > dl > dt, .divido-calculator > dl > dd {
         width: 50%;
+    }
+
+    .divido-calculator .divido-info .divido-calculations {
+        width: 45%;
+	    float: left;
+    }
+    
+    .divido-calculator .divido-info .divido-conditions {
+        margin-top: 0px;
+        width: 55%;
+	    float: left;
     }
 
     .divido-calculator > dl > dt {
@@ -67,12 +99,7 @@
     }
 }
 
-.divido-calculator div.divido-info dl dt, .divido-calculator div.divido-info dl dd {
-    width: 100%;
-}
-.divido-calculator div.divido-info dl dd {
-    padding-left: 5px;
-}
+/*
 @media screen and (min-width: 350px) {
     .divido-calculator div.divido-info dl dt {
         width: 70%;
@@ -103,6 +130,8 @@
         width: 70%;
     }
 }
+
+*/
 
 .divido-calculator input[type=range]{
     -webkit-appearance: none;
@@ -166,6 +195,7 @@
     display:block;
     clear:both;
     font-weight:bold;
+	color: #fff;
 }
 
 .divido-calculator input[type=range]::-webkit-slider-thumb {
@@ -189,7 +219,7 @@
     font-size: 20px;
     line-height: 1;
     text-indent: -9999px;
-    background-image:url('//content.divido.com.s3-eu-west-1.amazonaws.com/images/logo-black-140x42.png');
+    background-image:url('//cdn.divido.com/images/logo-black-140x42.png');
     background-repeat: no-repeat;
     background-size: cover;
 }
@@ -197,28 +227,27 @@
 .divido-calculator .divido-logo-sm {
     width: 75px;
     height: 23px;
-    background-image:url('//content.divido.com.s3-eu-west-1.amazonaws.com/images/logo-black-75x23.png');
+    background-image:url('//cdn.divido.com/images/logo-black-75x23.png');
 }
 
 .divido-calculator .divido-info {
     padding:20px;
+	overflow: auto;
 }
 
 .divido-calculator select {
     color: #000;
 }
 
-/*             */
-
 .divido-theme-light .divido-info {
     background:#f9f9f9;
 }
 
 .divido-theme-light a.divido-logo {
-    background-image:url('//content.divido.com.s3-eu-west-1.amazonaws.com/images/logo-blue-140x42.png');
+    background-image:url('//cdn.divido.com/images/logo-blue-140x42.png');
 }
 .divido-theme-light a.divido-logo-sm {
-    background-image:url('//content.divido.com.s3-eu-west-1.amazonaws.com/images/logo-blue-75x23.png');
+    background-image:url('//cdn.divido.com/images/logo-blue-75x23.png');
 }
 
 .divido-theme-light {
@@ -246,20 +275,17 @@
     background: #3E4F8B;
 }
 
-
-/*             */
-
 .divido-theme-blue .divido-info {
     background:#f9f9f9;
     color:#000;
 }
 
 .divido-theme-blue a.divido-logo {
-    background-image:url('//content.divido.com.s3-eu-west-1.amazonaws.com/images/logo-white-140x42.png');
+    background-image:url('//cdn.divido.com/images/logo-white-140x42.png');
 }
 
 .divido-theme-blue a.divido-logo-sm {
-    background-image:url('//content.divido.com.s3-eu-west-1.amazonaws.com/images/logo-white-75x23.png');
+    background-image:url('//cdn.divido.com/images/logo-white-75x23.png');
 }
 
 .divido-theme-blue {
@@ -315,3 +341,21 @@
     display: inline-block;
 }
 
+p.payment_module a.divido:after {
+	display: block;
+	content: "\f054";
+	position: absolute;
+	right: 15px;
+	margin-top: -11px;
+	top: 50%;
+	font-family: "FontAwesome";
+	font-size: 25px;
+	height: 22px;
+	width: 14px;
+	color: #777;
+}
+
+p.payment_module a.divido {
+	background: url(../img/divido-logo.png) 15px 45% no-repeat #fbfbfb;
+	background-size: 70px auto;
+}

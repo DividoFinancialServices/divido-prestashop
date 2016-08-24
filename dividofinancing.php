@@ -59,7 +59,8 @@ class DividoFinancing extends PaymentModule
         Configuration::updateValue('DIVIDO_CREATE_ORDER_STATUS', self::DIVIDO_STATUS_ACCEPTED);
         Configuration::updateValue('DIVIDO_TITLE', 'Pay in instalments with Divido');
         Configuration::updateValue('DIVIDO_PROD_SELECTION', self::PROD_SEL_ALL);
-        Configuration::updaMteValue('DIVIDO_PRICE_THRESHOLD', 0);
+        Configuration::updateValue('DIVIDO_PRICE_THRESHOLD', 0);
+        Configuration::updateValue('DIVIDO_CART_THRESHOLD', 0);
         Configuration::updateValue('DIVIDO_PLANS_OPTION', self::PLANS_ALL);
         Configuration::updateValue('DIVIDO_PLANS', null);
 
@@ -97,6 +98,180 @@ class DividoFinancing extends PaymentModule
         }
 
         return $output . $this->displayForm();
+    }
+
+    protected function postProcess()
+    {
+        $values = Tools::getAllValues();
+        foreach ($values as $key => $value) {
+            if (substr($key, 0, 7) != 'DIVIDO_') {
+                continue;
+            }
+
+            if (is_array($value)) {
+                $value = implode(',', $value);
+            }
+
+            Configuration::updateValue($key, $value);
+        }
+
+        $this->confirmation_message = (_PS_VERSION_ < '1.6' ?
+            '<div class="conf confirmation">'.$this->l('Settings updated').'</div>':
+            $this->displayConfirmation($this->l('Settings updated')));
+    }
+
+    public function hookBackOfficeHeader ()
+    {
+        $this->context->controller->addJS($this->_path . 'views/js/backoffice.js');
+    }
+
+    public function hookHeader ()
+    {
+        if ($scriptUrl = $this->getScriptUrl()) {
+            $this->context->controller->addJS($scriptUrl);
+        }
+
+        $this->context->controller->addJS($this->_path . 'views/js/frontoffice.js');
+        $this->context->controller->addCSS($this->_path . 'views/css/divido.css');
+    }
+
+    public function hookPayment ($params)
+    {
+        if (! $this->isGloballyAvailable($params)) {
+            return false;
+        }
+
+        $this->smarty->assign(array(
+            'this_path' => $this->_path,
+            'this_path_divido' => $this->_path,
+            'this_path_ssl' => Tools::getShopDomainSsl(true, true).__PS_BASE_URI__.'modules/'.$this->name.'/'
+        ));
+
+        return $this->display(__FILE__, 'payment.tpl');
+    }
+
+    public function hookDisplayAdminProductsExtra ($params)
+    {
+        $prodId = (int)Tools::getValue('id_product');
+        if (Validate::isLoadedObject($product = new Product($prodId))) {
+
+            $prodSettings = self::getProdSettings($prodId);
+
+            $availablePlans = array();
+            if ($allPlans = $this->getAllPlans()) {
+                foreach ($allPlans as $plan) {
+                    $availablePlans[$plan->id] = $plan->text;
+                }
+            }
+
+            $smartyVars = array(
+                'allPlans' => $availablePlans,
+                'prod_plans_option' => $prodSettings['plans_opt'],
+                'prod_plans' => explode(',', $prodSettings['plans']),
+            );
+
+            $this->context->smarty->assign($smartyVars);
+
+            return $this->display(__FILE__, 'product.tpl');
+        }
+    }
+
+    public function hookActionProductUpdate($params)
+    {
+        $prodId = (int)Tools::getValue('id_product');
+        $planIds = Tools::getValue('prod_plans');
+        $planOpt = Tools::getValue('prod_plans_option');
+
+        if (is_array($planIds)) {
+            $planIds = implode(',', $planIds);
+        }
+
+        $data = array(
+            'product_id' => $prodId,
+            'plans_opt' => $planOpt,
+            'plans' => $planIds,
+        );
+
+        return Db::getInstance()->insert('divido_products', $data, true, false, Db::ON_DUPLICATE_KEY);
+    }
+
+    public function hookDisplayProductPriceBlock ($params)
+    {
+        $prod = $params['product'];
+
+        if ($params['type'] != 'after_price') {
+            return false;
+        }
+
+        $showWidget = Configuration::get('DIVIDO_SHOW_WIDGET');
+        if ($showWidget != self::SHOW_WIDGET_YES) {
+            return false;
+        }
+
+        if (! $this->isAvailableOnProd($prod)) {
+            return false;
+        }
+        
+        $plans = $this->getProductPlans($prod->id);
+        $plans = array_map(function ($p) { return $p->id; }, $plans);
+        $plans = implode(',', $plans);
+
+        $data = array(
+            'price' => $prod->getPrice(),
+            'plans' => $plans,
+        );
+
+        $this->context->smarty->assign($data);
+
+        return $this->display(__FILE__, 'widget.tpl');
+    }
+
+    public function isGloballyAvailable ($params)
+    {
+        if (! $this->active) {
+            return false;
+        }
+
+        $cart = $params['cart'];
+
+        $cartLimit = (float)Configuration::get('DIVIDO_CART_TRESHOLD');
+		$cartValue = (float)$cart->getOrderTotal(true, Cart::BOTH);
+        $aboveThreshold = $cartValue >= $cartLimit;
+
+        $hasPlans = count($this->getCartPlans($cart));
+
+        $shipping = new Address(intval($cart->id_address_delivery));
+        $countryCode = Country::getIsoById($shipping->id_country);
+        $rightCountry = $countryCode == 'GB';
+
+        return $aboveThreshold && $hasPlans && $rightCountry;
+    }
+
+    public function isAvailableOnProd ($product)
+    {
+
+        if (! $this->active || ! Configuration::get('DIVIDO_ENABLED')) {
+            return false;
+        }
+
+        $productOptions        = Configuration::get('DIVIDO_PROD_SELECTION');
+        $productPriceThreshold = Configuration::get('DIVIDO_PRICE_THRESHOLD');
+
+        switch ($productOptions) {
+        case self::PROD_SEL_TRESHOLD:
+            if ($product->getPrice() < $productPriceThreshold) {
+                return false;
+            }
+            break;
+
+        case self::PROD_SEL_SELECTED:
+            $productPlans = $this->getProductPlans($product);
+            if (! $productPlans) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function getAllPlans()
@@ -181,127 +356,6 @@ class DividoFinancing extends PaymentModule
         return $plans;
     }
 
-    protected function postProcess()
-    {
-        $values = Tools::getAllValues();
-        foreach ($values as $key => $value) {
-            if (substr($key, 0, 7) != 'DIVIDO_') {
-                continue;
-            }
-
-            if (is_array($value)) {
-                $value = implode(',', $value);
-            }
-
-            Configuration::updateValue($key, $value);
-        }
-
-        $this->confirmation_message = (_PS_VERSION_ < '1.6' ?
-            '<div class="conf confirmation">'.$this->l('Settings updated').'</div>':
-            $this->displayConfirmation($this->l('Settings updated')));
-    }
-
-    public function hookBackOfficeHeader ()
-    {
-        $this->context->controller->addJS($this->_path . 'views/js/backoffice.js');
-    }
-
-    public function hookHeader ()
-    {
-        if ($scriptUrl = $this->getScriptUrl()) {
-            $this->context->controller->addJS($scriptUrl);
-        }
-
-        $this->context->controller->addJS($this->_path . 'views/js/frontoffice.js');
-        $this->context->controller->addCSS($this->_path . 'views/css/divido.css');
-    }
-
-    public function hookPayment ($params)
-    {
-        if (! $this->active) {
-            return;
-        }
-
-        $this->smarty->assign(array(
-            'this_path' => $this->_path,
-            'this_path_divido' => $this->_path,
-            'this_path_ssl' => Tools::getShopDomainSsl(true, true).__PS_BASE_URI__.'modules/'.$this->name.'/'
-        ));
-
-        return $this->display(__FILE__, 'payment.tpl');
-    }
-
-    public function hookDisplayAdminProductsExtra ($params)
-    {
-        $prodId = (int)Tools::getValue('id_product');
-        if (Validate::isLoadedObject($product = new Product($prodId))) {
-
-            $prodSettings = self::getProdSettings($prodId);
-
-            $availablePlans = array();
-            if ($allPlans = $this->getAllPlans()) {
-                foreach ($allPlans as $plan) {
-                    $availablePlans[$plan->id] = $plan->text;
-                }
-            }
-
-            $smartyVars = array(
-                'allPlans' => $availablePlans,
-                'prod_plans_option' => $prodSettings['plans_opt'],
-                'prod_plans' => explode(',', $prodSettings['plans']),
-            );
-
-            $this->context->smarty->assign($smartyVars);
-
-            return $this->display(__FILE__, 'product.tpl');
-        }
-    }
-
-    public function hookActionProductUpdate($params)
-    {
-        $prodId = (int)Tools::getValue('id_product');
-        $planIds = Tools::getValue('prod_plans');
-        $planOpt = Tools::getValue('prod_plans_option');
-
-        if (is_array($planIds)) {
-            $planIds = implode(',', $planIds);
-        }
-
-        $data = array(
-            'product_id' => $prodId,
-            'plans_opt' => $planOpt,
-            'plans' => $planIds,
-        );
-
-        return Db::getInstance()->insert('divido_products', $data, true, false, Db::ON_DUPLICATE_KEY);
-    }
-
-    public function hookDisplayProductPriceBlock ($params)
-    {
-        if ($params['type'] != 'after_price') {
-            return false;
-        }
-
-        $showWidget = Configuration::get('DIVIDO_SHOW_WIDGET');
-        if ($showWidget != self::SHOW_WIDGET_YES) {
-            return false;
-        }
-
-        $prod = $params['product'];
-        
-        $plans = $this->getProductPlans($prod->id);
-        $plans = array_map(function ($p) { return $p->id; }, $plans);
-        $plans = implode(',', $plans);
-
-        $data = array(
-            'price' => $prod->getPrice(),
-            'plans' => $plans,
-        );
-
-        $this->context->smarty->assign($data);
-
-        return $this->display(__FILE__, 'widget.tpl');
-    }
     public static function getProdSettings ($prodId)
     {
         $q = 'select * from ' . _DB_PREFIX_ . 'divido_products where product_id = ' . $prodId;
@@ -383,6 +437,7 @@ class DividoFinancing extends PaymentModule
             'DIVIDO_TITLE'               => Configuration::get('DIVIDO_TITLE'),
             'DIVIDO_PROD_SELECTION'      => Configuration::get('DIVIDO_PROD_SELECTION'),
             'DIVIDO_PRICE_THRESHOLD'     => Configuration::get('DIVIDO_PRICE_THRESHOLD'),
+            'DIVIDO_CART_THRESHOLD'      => Configuration::get('DIVIDO_CART_THRESHOLD'),
             'DIVIDO_PLANS_OPTION'        => Configuration::get('DIVIDO_PLANS_OPTION'),
             'DIVIDO_PLANS[]'             => explode(',', Configuration::get('DIVIDO_PLANS')),
         );
@@ -487,6 +542,13 @@ class DividoFinancing extends PaymentModule
                             ),
                         ),
                     ),
+                ),
+                array(
+                    'type'     => 'text',
+                    'label'    => $this->l('Cart threshold'),
+                    'name'     => 'DIVIDO_CART_THRESHOLD',
+                    'size'     => 52,
+                    'required' => false,
                 ),
                 array(
                     'type'     => 'select',
