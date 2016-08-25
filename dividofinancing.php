@@ -19,7 +19,9 @@ class DividoFinancing extends PaymentModule
         PLANS_ALL = 0,
         PLANS_SELECTED = 1,
         PROD_PLANS_ALL = 0,
-        PROD_PLANS_SELECTED = 1;
+        PROD_PLANS_SELECTED = 1,
+        CACHE_KEY_PLANS = 'divido_plans',
+        CACHE_TTL = 3600;
 
     public $apiKey;
 
@@ -70,6 +72,7 @@ class DividoFinancing extends PaymentModule
         $boHeadHook      = $this->registerHook('backOfficeHeader');
         $boProdHook      = $this->registerHook('displayAdminProductsExtra');
         $boProdSaveHook  = $this->registerHook('actionProductUpdate');
+        $boOrderInfoHook = $this->registerHook('displayAdminOrder');
         $foHeadHook      = $this->registerHook('header');
         $foPaymentHook   = $this->registerHook('payment');
         $foProdPriceHook = $this->registerHook('displayProductPriceBlock');
@@ -102,6 +105,10 @@ class DividoFinancing extends PaymentModule
 
     protected function postProcess()
     {
+        if (Cache::isStored(self::CACHE_KEY_PLANS)) {
+            Cache::clean(self::CACHE_KEY_PLANS);
+        }
+
         $values = Tools::getAllValues();
         foreach ($values as $key => $value) {
             if (substr($key, 0, 7) != 'DIVIDO_') {
@@ -176,6 +183,23 @@ class DividoFinancing extends PaymentModule
         }
     }
 
+    public function hookDisplayAdminOrder ($params)
+    {
+        xdebug_break();
+        $cartId = $params['cart']->id;
+
+        $lookup = $this->getLookup($cartId);
+        $data = array(
+            'proposal_id'    => $lookup['credit_request_id'],
+            'application_id' => $lookup['credit_application_id'],
+            'deposit_amount' => $lookup['deposit_amount'],
+        );
+
+        $this->context->smarty->assign($data);
+
+        return $this->display(__FILE__, 'order_info.tpl');
+
+    }
     public function hookActionProductUpdate($params)
     {
         $prodId = (int)Tools::getValue('id_product');
@@ -279,13 +303,20 @@ class DividoFinancing extends PaymentModule
         if (! $apiKey = $this->getApiKey()) {
             return false;
         }
+        xdebug_break();
 
-        $plans = Divido_Finances::all();
-        if ($plans->status != 'ok') {
-            return false;
+        if (! $allPlans = Cache::getInstance()->get(self::CACHE_KEY_PLANS)) {
+            $plans = Divido_Finances::all();
+            if ($plans->status != 'ok') {
+                return false;
+            }
+
+            $allPlans = $plans->finances;
+            Cache::getInstance()->set(self::CACHE_KEY_PLANS, $allPlans, self::CACHE_TTL);
         }
 
-        return $plans->finances;
+
+        return $allPlans;
     }
 
     public function getGlobalPlans ()
@@ -445,6 +476,12 @@ class DividoFinancing extends PaymentModule
     public function createLookup ($values = array()) {
         $values = array_map(function ($val) { return pSQL($val); }, $values);
         return DB::getInstance()->insert('divido_lookup', $values, false, true, Db::ON_DUPLICATE_KEY);
+    }
+
+    public function getLookup ($cartId)
+    {
+        $q = 'select * from ' . _DB_PREFIX_ . 'divido_lookup where cart_id = ' . $cartId;
+        return Db::getInstance()->getRow($q);
     }
 
     public function doCreditRequest ($requestData)
