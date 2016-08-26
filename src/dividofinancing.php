@@ -11,10 +11,12 @@ class DividoFinancing extends PaymentModule
     const
         DIVIDO_STATUS_ACCEPTED = 'ACCEPTED',
         DIVIDO_STATUS_SIGNED = 'SIGNED',
+        DIVIDO_STATUS_CANCELLED = '',
+        DIVIDO_STATUS_DECLINED = '',
         SHOW_WIDGET_YES = 1,
         SHOW_WIDGET_NO = 0,
         PROD_SEL_ALL = 0,
-        PROD_SEL_TRESHOLD = 1,
+        PROD_SEL_THRESHOLD = 1,
         PROD_SEL_SELECTED = 2,
         PLANS_ALL = 0,
         PLANS_SELECTED = 1,
@@ -185,7 +187,6 @@ class DividoFinancing extends PaymentModule
 
     public function hookDisplayAdminOrder ($params)
     {
-        xdebug_break();
         $cartId = $params['cart']->id;
 
         $lookup = $this->getLookup($cartId);
@@ -258,7 +259,7 @@ class DividoFinancing extends PaymentModule
 
         $cart = $params['cart'];
 
-        $cartLimit = (float)Configuration::get('DIVIDO_CART_TRESHOLD');
+        $cartLimit = (float)Configuration::get('DIVIDO_CART_THRESHOLD');
 		$cartValue = (float)$cart->getOrderTotal(true, Cart::BOTH);
         $aboveThreshold = $cartValue >= $cartLimit;
 
@@ -282,7 +283,7 @@ class DividoFinancing extends PaymentModule
         $productPriceThreshold = Configuration::get('DIVIDO_PRICE_THRESHOLD');
 
         switch ($productOptions) {
-        case self::PROD_SEL_TRESHOLD:
+        case self::PROD_SEL_THRESHOLD:
             if ($product->getPrice() < $productPriceThreshold) {
                 return false;
             }
@@ -303,7 +304,6 @@ class DividoFinancing extends PaymentModule
         if (! $apiKey = $this->getApiKey()) {
             return false;
         }
-        xdebug_break();
 
         if (! $allPlans = Cache::getInstance()->get(self::CACHE_KEY_PLANS)) {
             $plans = Divido_Finances::all();
@@ -406,7 +406,7 @@ class DividoFinancing extends PaymentModule
         return "//cdn.divido.com/calculator/{$jsKey}.js";
     }
 
-    public function hash_cart ($salt, $cartId)
+    public function hashCart ($salt, $cartId)
     {
         return hash('sha256', $salt.$cartId);
     }
@@ -605,7 +605,7 @@ class DividoFinancing extends PaymentModule
                                 'name' => $this->l('Selected products'),
                             ),
                             array(
-                                'id_selection' => self::PROD_SEL_TRESHOLD,
+                                'id_selection' => self::PROD_SEL_THRESHOLD,
                                 'name' => $this->l('All products above a defined price'),
                             ),
                         ),

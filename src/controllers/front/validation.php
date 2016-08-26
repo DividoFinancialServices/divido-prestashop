@@ -41,8 +41,9 @@ class DividofinancingValidationModuleFrontController extends ModuleFrontControll
 		$currency = $this->context->currency;
         $currencyCode = $currency->iso_code;
         
+
         $salt = uniqid('', true);
-        $hash = $this->module->hash_cart($salt, $cart->id);
+        $hash = $this->module->hashCart($salt, $cart->id);
 
         $shipping = new Address(intval($cart->id_address_delivery));
         $countryCode = Country::getIsoById($shipping->id_country);
