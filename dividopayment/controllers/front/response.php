@@ -74,11 +74,13 @@ class DividoPaymentResponseModuleFrontController extends ModuleFrontController
         $order = new Order(Order::getOrderByCartId($cart_id));
         if ($order->current_state != Configuration::get('DIVIDO_AWAITING_STATUS')) {
             if ($status != $order->current_state) {
-                $order->setCurrentState($status);
+                $this->setCurrentState($order, $status);
             }
         } elseif ($status != $order->current_state) {
-            $order->setCurrentState($status);
             $extra_vars = array('transaction_id' => $data->application);
+            $order->addOrderPayment($result['total'], null, $data->application);
+            $this->setCurrentState($order, $status);
+
             $this->updateOrder(
                 $cart_id,
                 $status,
@@ -86,6 +88,28 @@ class DividoPaymentResponseModuleFrontController extends ModuleFrontController
             );
         }
         die;
+    }
+
+    public function setCurrentState($order, $id_order_state, $id_employee = 0)
+    {
+        if (empty($id_order_state)) {
+            return false;
+        }
+        $history = new OrderHistory();
+        $history->id_order = (int)$order->id;
+        $history->id_employee = (int)$id_employee;
+        $history->changeIdOrderState((int)$id_order_state, $order, true);
+        $res = Db::getInstance()->getRow('
+            SELECT `invoice_number`, `invoice_date`, `delivery_number`, `delivery_date`
+            FROM `'._DB_PREFIX_.'orders`
+            WHERE `id_order` = '.(int)$order->id);
+        $order->invoice_date = $res['invoice_date'];
+        $order->invoice_number = $res['invoice_number'];
+        $order->delivery_date = $res['delivery_date'];
+        $order->delivery_number = $res['delivery_number'];
+        $order->update();
+
+        $history->addWithemail();
     }
 
     public function updateOrder($cart_id, $id_order_state, $extra_vars)
