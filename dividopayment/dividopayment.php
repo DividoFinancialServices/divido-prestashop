@@ -98,7 +98,7 @@ class DividoPayment extends PaymentModule
     {
         Configuration::updateValue('DIVIDO_API_KEY', null);
         Configuration::updateValue('DIVIDO_PAYMENT_TITLE', $this->displayName);
-        Configuration::updateValue('DIVIDO_ACTIVATION_STATUS', Configuration::get('PS_OS_SHIPPED'));
+        Configuration::updateValue('DIVIDO_ACTIVATION_STATUS', Configuration::get('PS_OS_DELIVERED'));
         Configuration::updateValue('DIVIDO_PRODUCT_WIDGET', null);
         Configuration::updateValue('DIVIDO_PRODUCT_CALCULATOR', null);
         Configuration::updateValue('DIVIDO_PRODUCT_WIDGET_PREFIX', 'Finance From');
@@ -115,7 +115,6 @@ class DividoPayment extends PaymentModule
                 case 'ACCEPTED':
                 case 'DEPOSIT-PAID':
                 case 'ACTION-LENDER':
-                case 'DECLINED':
                 case 'DEFERRED':
                 case 'REFERRED':
                     $status = Configuration::get('PS_OS_PREPARATION');
@@ -128,6 +127,7 @@ class DividoPayment extends PaymentModule
                     break;
 
                 case 'CANCELED':
+                case 'DECLINED':
                     $status = Configuration::get('PS_OS_CANCELED');
                     break;
 
