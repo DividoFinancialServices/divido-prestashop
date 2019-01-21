@@ -77,6 +77,8 @@ class DividoPayment extends PaymentModule
         $this->version = '1.0.0';
         $this->author = 'Divido Financial Services';
         $this->need_instance = 0;
+        $this->module_key = 'f2936a31776b64f2b263764752bcf235';
+
 
         $this->bootstrap = true;
 
