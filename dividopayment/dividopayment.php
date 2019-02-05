@@ -461,7 +461,7 @@ class DividoPayment extends PaymentModule
             );
             $form['form']['input'][] = array(
                 'type' => 'html',
-                'name' => '<div class="alert alert-warning">'.$this->l('DIVIDO Response status mapping').'</div>',
+                'name' => $this->l('DIVIDO Response status mapping'),
             );
             foreach ($this->ApiOrderStatus as $ApiStatus) {
                 $form['form']['input'][] = array(
@@ -515,7 +515,7 @@ class DividoPayment extends PaymentModule
     protected function postProcess()
     {
         if (!Tools::getValue('DIVIDO_API_KEY')) {
-            return '<div class="alert alert-danger">'.Tools::displayError('Api key Cannot be empty').'</div>';
+            return $this->displayError($this->l('Api key Cannot be empty'));
         }
         $form_values = $this->getConfigFormValues();
 
