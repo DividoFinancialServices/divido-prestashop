@@ -30,6 +30,10 @@
 * but does not want to loose all of the data associated to the module.
 */
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 $sql = array();
 $sql[] = 'DROP TABLE IF EXISTS `'._DB_PREFIX_.'divido_requests`';
 $sql[] = 'DROP TABLE IF EXISTS `'._DB_PREFIX_.'divido_product`';

@@ -24,6 +24,10 @@
 *  International Registered Trademark & Property of PrestaShop SA
 */
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 $sql = array();
 
 $sql[] = 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX_.'divido_requests` (
